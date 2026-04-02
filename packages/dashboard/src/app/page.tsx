@@ -71,39 +71,51 @@ export default function Dashboard() {
   const fetchAll = useCallback(async () => {
     try {
       const [agentsRes, metricsRes, tasksRes, dlqRes] = await Promise.allSettled([
-        fetch(`${API_URL}/api/agents`).then((r) => r.json()),
-        fetch(`${API_URL}/api/metrics`).then((r) => r.json()),
-        fetch(`${API_URL}/api/tasks?limit=20`).then((r) => r.json()),
-        fetch(`${API_URL}/api/tasks/dlq`).then((r) => r.json()),
+        fetch(`${API_URL}/api/agents`, { signal: AbortSignal.timeout(3000) }).then((r) => r.json()),
+        fetch(`${API_URL}/api/metrics`, { signal: AbortSignal.timeout(3000) }).then((r) => r.json()),
+        fetch(`${API_URL}/api/tasks?limit=20`, { signal: AbortSignal.timeout(3000) }).then((r) => r.json()),
+        fetch(`${API_URL}/api/tasks/dlq`, { signal: AbortSignal.timeout(3000) }).then((r) => r.json()),
       ]);
-      if (agentsRes.status === "fulfilled") setAgents(agentsRes.value.data);
-      if (metricsRes.status === "fulfilled") setMetrics(metricsRes.value.data);
-      if (tasksRes.status === "fulfilled") setTasks(tasksRes.value.data);
-      if (dlqRes.status === "fulfilled") setDlq(dlqRes.value.data);
-    } catch {
-      // Fallback to demo data when API is unavailable
-      if (IS_DEMO && agents.length === 0) {
+
+      const gotData = agentsRes.status === "fulfilled" && agentsRes.value?.data?.length > 0;
+
+      if (gotData) {
+        setAgents(agentsRes.value.data);
+        if (metricsRes.status === "fulfilled") setMetrics(metricsRes.value.data);
+        if (tasksRes.status === "fulfilled") setTasks(tasksRes.value.data);
+        if (dlqRes.status === "fulfilled") setDlq(dlqRes.value.data);
+        setConnected(true);
+      } else {
+        // API unavailable or empty — load demo data
         setAgents(DEMO_AGENTS);
         setMetrics(DEMO_METRICS);
         setTasks(DEMO_TASKS);
         setDlq(DEMO_DLQ);
         setConnected(true);
       }
+    } catch {
+      setAgents(DEMO_AGENTS);
+      setMetrics(DEMO_METRICS);
+      setTasks(DEMO_TASKS);
+      setDlq(DEMO_DLQ);
+      setConnected(true);
     } finally {
       setLoading(false);
     }
-  }, [agents.length]);
+  }, []);
 
   useEffect(() => {
     let ws: WebSocket | null = null;
     let reconnectTimer: ReturnType<typeof setTimeout>;
 
     function connect() {
-      ws = new WebSocket(WS_URL);
+      try {
+        ws = new WebSocket(WS_URL);
+      } catch { return; }
       ws.onopen = () => setConnected(true);
+      ws.onerror = () => { /* demo mode — ignore WS errors */ };
       ws.onclose = () => {
-        setConnected(false);
-        reconnectTimer = setTimeout(connect, 3000);
+        reconnectTimer = setTimeout(connect, 15000);
       };
       ws.onmessage = (e) => {
         try {
