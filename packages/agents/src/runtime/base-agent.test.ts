@@ -160,7 +160,7 @@ describe("BaseAgent", () => {
   describe("heartbeat", () => {
     it("emits heartbeat events", async () => {
       const hbAgent = new TestAgent();
-      // Override heartbeat interval to be fast for testing
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (hbAgent as any).config.heartbeatInterval = 50;
 
       const heartbeats: unknown[] = [];

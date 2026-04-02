@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import type { Task } from "@agentforge/shared";
 import { AgentRegistry } from "./agent-registry.js";
 import { BaseAgent } from "./base-agent.js";

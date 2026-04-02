@@ -53,7 +53,7 @@ export class WatchdogAgent extends BaseAgent {
     }
   }
 
-  protected async process(task: Task): Promise<Record<string, unknown>> {
+  protected async process(_task: Task): Promise<Record<string, unknown>> {
     const agents = this.registry.list();
     const issues: string[] = [];
 

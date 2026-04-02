@@ -1,9 +1,7 @@
 import { EventEmitter } from "node:events";
 import type {
   AgentConfig,
-  AgentStatus,
   Task,
-  TaskStatus,
   Heartbeat,
 } from "@agentforge/shared";
 import { nanoid } from "nanoid";
