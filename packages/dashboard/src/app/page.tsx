@@ -1,9 +1,11 @@
 "use client";
 
 import { useEffect, useState, useCallback } from "react";
+import { DEMO_AGENTS, DEMO_METRICS, DEMO_TASKS, DEMO_DLQ } from "../lib/mock-data";
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000";
 const WS_URL = process.env.NEXT_PUBLIC_WS_URL || "ws://localhost:3000/ws";
+const IS_DEMO = process.env.NEXT_PUBLIC_DEMO === "true" || typeof window !== "undefined";
 
 interface Agent {
   id: string;
@@ -78,10 +80,19 @@ export default function Dashboard() {
       if (metricsRes.status === "fulfilled") setMetrics(metricsRes.value.data);
       if (tasksRes.status === "fulfilled") setTasks(tasksRes.value.data);
       if (dlqRes.status === "fulfilled") setDlq(dlqRes.value.data);
+    } catch {
+      // Fallback to demo data when API is unavailable
+      if (IS_DEMO && agents.length === 0) {
+        setAgents(DEMO_AGENTS);
+        setMetrics(DEMO_METRICS);
+        setTasks(DEMO_TASKS);
+        setDlq(DEMO_DLQ);
+        setConnected(true);
+      }
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [agents.length]);
 
   useEffect(() => {
     let ws: WebSocket | null = null;
@@ -156,6 +167,9 @@ export default function Dashboard() {
           </div>
         </div>
         <div className="flex items-center gap-3">
+          {IS_DEMO && agents.length > 0 && (
+            <span className="px-2 py-0.5 text-[10px] rounded bg-accent/10 border border-accent/20 text-accent">DEMO</span>
+          )}
           <div className={`flex items-center gap-1.5 px-2 py-1 rounded text-[11px] border ${connected ? "border-ok/20 text-ok" : "border-err/20 text-err"}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${connected ? "bg-ok pulse" : "bg-err"}`} />
             {connected ? "Live" : "Offline"}
