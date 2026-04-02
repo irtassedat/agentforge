@@ -1,6 +1,7 @@
 import { EventEmitter } from "node:events";
 import type {
   AgentConfig,
+  AgentStatus,
   Task,
   Heartbeat,
 } from "@agentforge/shared";
