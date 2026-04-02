@@ -7,6 +7,8 @@
 
 **AI Agent Orchestration Platform** — Define, deploy, and monitor autonomous agents with real-time observability.
 
+**[Live Demo Dashboard](https://dashboard-rust-chi-93.vercel.app)** | [Documentation](#features) | [Quick Start](#quick-start)
+
 ```
               ┌─────────────────────────────────────────────┐
               │              AgentForge                      │
