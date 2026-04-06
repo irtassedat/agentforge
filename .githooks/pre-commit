@@ -1,0 +1,64 @@
+#!/bin/bash
+# Pre-commit hook: block commits containing real API keys or secrets
+# Scans staged files for key patterns before allowing commit.
+
+RED='\033[0;31m'
+YELLOW='\033[0;33m'
+GREEN='\033[0;32m'
+NC='\033[0m'
+
+FOUND=0
+
+# Patterns to detect (add more as needed)
+PATTERNS=(
+  'sk-ant-api[0-9]+-[A-Za-z0-9_\-]{50,}'       # Anthropic API keys
+  'sk-proj-[A-Za-z0-9]{40,}'                    # OpenAI project keys
+  'ghp_[A-Za-z0-9]{36,}'                        # GitHub personal access tokens
+  'xox[baprs]-[0-9]+-[0-9]+-[A-Za-z0-9]+'       # Slack tokens
+  'AKIA[0-9A-Z]{16}'                            # AWS access keys
+  'AIza[0-9A-Za-z\-_]{35}'                      # Google API keys
+)
+
+STAGED=$(git diff --cached --name-only --diff-filter=ACM)
+
+if [ -z "$STAGED" ]; then
+  exit 0
+fi
+
+for file in $STAGED; do
+  # Skip binary files
+  if ! git diff --cached "$file" | grep -Iq .; then
+    continue
+  fi
+
+  # Skip the hook itself
+  if [[ "$file" == ".githooks/"* ]]; then
+    continue
+  fi
+
+  for pattern in "${PATTERNS[@]}"; do
+    if git diff --cached "$file" | grep -E "$pattern" > /dev/null 2>&1; then
+      echo -e "${RED}✗ SECRET DETECTED in $file${NC}"
+      echo -e "${YELLOW}  Pattern matched — not committing.${NC}"
+      echo -e "${YELLOW}  Remove the secret and try again.${NC}"
+      echo -e "${YELLOW}  If this is a false positive, bypass with: git commit --no-verify${NC}"
+      FOUND=1
+    fi
+  done
+
+  # Extra check: .env.example should never have real keys (only placeholders)
+  if [[ "$file" == *".env.example" ]]; then
+    if git diff --cached "$file" | grep -E '^\+.*=[A-Za-z0-9]{32,}' | grep -v 'your-key-here\|example\|placeholder' > /dev/null 2>&1; then
+      echo -e "${RED}✗ .env.example contains what looks like a real value in $file${NC}"
+      echo -e "${YELLOW}  .env.example should only have placeholder values.${NC}"
+      FOUND=1
+    fi
+  fi
+done
+
+if [ $FOUND -eq 1 ]; then
+  exit 1
+fi
+
+echo -e "${GREEN}✓ No secrets detected in staged files${NC}"
+exit 0
