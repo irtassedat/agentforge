@@ -9,3 +9,6 @@ export { SubAgent } from "./delegation/sub-agent.js";
 export type { SubAgentContext } from "./delegation/sub-agent.js";
 export { Delegator } from "./delegation/delegator.js";
 export { MessageBus } from "./messaging/message-bus.js";
+export { PipelineAgent } from "./workers/pipeline-agent.js";
+export { MonitorAgent } from "./workers/monitor-agent.js";
+export { CoordinatorAgent } from "./workers/coordinator-agent.js";
