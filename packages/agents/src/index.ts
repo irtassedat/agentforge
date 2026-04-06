@@ -8,3 +8,4 @@ export { SkillRegistry } from "./skills/skill-registry.js";
 export { SubAgent } from "./delegation/sub-agent.js";
 export type { SubAgentContext } from "./delegation/sub-agent.js";
 export { Delegator } from "./delegation/delegator.js";
+export { MessageBus } from "./messaging/message-bus.js";
