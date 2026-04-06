@@ -6,7 +6,13 @@
 export type AgentStatus = "idle" | "running" | "paused" | "failed" | "terminated";
 
 /** Task processing states */
-export type TaskStatus = "pending" | "queued" | "processing" | "completed" | "failed" | "dead_letter";
+export type TaskStatus =
+  | "pending"
+  | "queued"
+  | "processing"
+  | "completed"
+  | "failed"
+  | "dead_letter";
 
 /** Priority levels for task scheduling */
 export type Priority = "critical" | "high" | "normal" | "low";
@@ -38,6 +44,10 @@ export interface AgentConfig {
   heartbeatInterval: number;
   /** Custom metadata */
   meta?: Record<string, unknown>;
+  /** Skills this agent can use */
+  skills?: string[];
+  /** SubAgent configurations for delegation */
+  subAgents?: SubAgentConfig[];
 }
 
 /** Live agent instance — runtime state */
@@ -159,7 +169,10 @@ export type WSEvent =
   | { type: "metrics"; data: SystemMetrics }
   | { type: "dlq_entry"; data: DeadLetter }
   | { type: "workflow_update"; data: Workflow }
-  | { type: "log"; data: LogEntry };
+  | { type: "log"; data: LogEntry }
+  | { type: "skill_executed"; data: SkillResult }
+  | { type: "subagent_completed"; data: SubAgentResult }
+  | { type: "agent_message"; data: AgentMessage };
 
 /** Structured log entry */
 export interface LogEntry {
@@ -192,3 +205,110 @@ export type AgentCommand =
   | { action: "resume"; agentId: string }
   | { action: "restart"; agentId: string }
   | { action: "scale"; agentId: string; instances: number };
+
+// ========================================
+// Skill System Types
+// ========================================
+
+/** Skill lifecycle states */
+export type SkillStatus = "registered" | "active" | "cooldown" | "disabled";
+
+/** Structured output field definition */
+export interface SkillOutputField {
+  name: string;
+  type: "text" | "table" | "boolean" | "metric" | "list";
+  required: boolean;
+  description?: string;
+}
+
+/** Skill definition — reusable capability an agent can execute */
+export interface SkillDefinition {
+  name: string;
+  description: string;
+  triggerPhrases: string[];
+  allowedTools?: string[];
+  cooldownMs?: number;
+  outputFormat: SkillOutputField[];
+}
+
+/** Obstacle encountered during skill execution */
+export interface Obstacle {
+  type: "dependency" | "permission" | "timeout" | "environment" | "network" | "other";
+  description: string;
+  workaround?: string;
+  severity: "info" | "warning" | "critical";
+}
+
+/** Skill execution result with structured output */
+export interface SkillResult {
+  skillName: string;
+  agentId: string;
+  status: "success" | "partial" | "failed";
+  output: Record<string, unknown>;
+  obstacles: Obstacle[];
+  duration: number;
+  timestamp: Date;
+}
+
+/** Context passed to a skill during execution */
+export interface SkillContext {
+  task: Task;
+  agentId: string;
+  params?: Record<string, unknown>;
+}
+
+// ========================================
+// SubAgent Types
+// ========================================
+
+/** SubAgent delegation mode */
+export type DelegationMode = "fire_and_forget" | "wait_for_result" | "stream_progress";
+
+/** SubAgent configuration */
+export interface SubAgentConfig {
+  name: string;
+  description: string;
+  tools: string[];
+  model?: "fast" | "balanced" | "thorough";
+  skills?: string[];
+  delegationMode: DelegationMode;
+  timeoutMs?: number;
+}
+
+/** SubAgent execution result */
+export interface SubAgentResult {
+  subAgentName: string;
+  parentAgentId: string;
+  status: "completed" | "failed" | "timeout";
+  summary: string;
+  output: Record<string, unknown>;
+  obstacles: Obstacle[];
+  toolsUsed: string[];
+  duration: number;
+  timestamp: Date;
+}
+
+// ========================================
+// Agent Messaging Types
+// ========================================
+
+/** Inter-agent message */
+export interface AgentMessage {
+  id: string;
+  from: string;
+  to: string;
+  type: "task" | "result" | "query" | "broadcast";
+  payload: Record<string, unknown>;
+  priority: Priority;
+  timestamp: Date;
+  expiresAt?: Date;
+}
+
+/** Message acknowledgment */
+export interface MessageAck {
+  messageId: string;
+  agentId: string;
+  status: "received" | "processing" | "completed" | "rejected";
+  result?: Record<string, unknown>;
+  timestamp: Date;
+}
