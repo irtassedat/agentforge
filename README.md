@@ -38,12 +38,14 @@
 ## Features
 
 - **Autonomous Agents** — Define agents with configurable concurrency, retry strategies, and timeouts
+- **Skills System** — Reusable capabilities with semantic matching, structured output, and obstacle reporting
+- **SubAgent Delegation** — Isolated context execution with parallel fan-out and result aggregation
+- **Inter-Agent Messaging** — Priority-queued agent-to-agent communication with ack/nack and DLQ
 - **Agent Registry** — Central lifecycle management with start/stop/pause/resume/restart commands
 - **Task Processing** — Priority-based queue with exponential backoff and dead letter queue (DLQ)
 - **Self-Healing** — Watchdog agent monitors health and auto-restarts failed agents
 - **Real-Time Dashboard** — WebSocket-powered monitoring with live metrics, logs, and agent status
 - **Telegram Bot** — Control agents via chat: `/agents list`, `/agent restart worker-1`, `/status`
-- **Workflow Engine** — Chain agents into multi-step workflows with conditional logic
 - **Type-Safe** — Full TypeScript monorepo with shared types across all packages
 
 ## Architecture
@@ -116,6 +118,83 @@ const watchdog = new WatchdogAgent("watchdog", registry, {
 });
 await watchdog.start();
 ```
+
+## Skills System
+
+Skills are reusable capabilities that agents can execute. They provide semantic matching, structured output, cooldown enforcement, and obstacle reporting.
+
+```typescript
+import { BaseSkill, SkillRegistry } from "@agentforge/agents";
+import type { SkillContext } from "@agentforge/shared";
+
+class HealthCheckSkill extends BaseSkill {
+  readonly name = "health-check";
+  readonly description = "Checks service health endpoints";
+  readonly triggerPhrases = ["health", "status", "check", "monitor"];
+  readonly outputFormat = [
+    { name: "status", type: "text", required: true },
+    { name: "services", type: "table", required: true },
+  ];
+
+  protected async execute(context: SkillContext) {
+    this.reportObstacle({
+      type: "network",
+      description: "Endpoint slow (>5s)",
+      severity: "warning",
+    });
+    return { status: "OK", services: [] };
+  }
+}
+
+// Semantic matching
+const registry = new SkillRegistry();
+registry.register(new HealthCheckSkill());
+const skill = registry.match("check if services are running"); // confidence: 0.72
+```
+
+## SubAgent Delegation
+
+SubAgents run tasks in isolated contexts. Only the summary returns to the parent.
+
+```typescript
+import { Delegator } from "@agentforge/agents";
+
+const delegator = new Delegator();
+const result = await delegator.delegate(
+  { name: "researcher", tools: ["Read", "Grep"], delegationMode: "wait_for_result" },
+  parentAgentId, task,
+  async (ctx) => {
+    ctx.recordToolUse("Read");
+    ctx.reportObstacle({ type: "timeout", description: "API slow", severity: "warning" });
+    return { findings: "JWT validation in auth.ts:42" };
+  }
+);
+// result.summary, result.obstacles, result.toolsUsed
+```
+
+## Inter-Agent Messaging
+
+Priority-queued agent-to-agent communication with ack/nack lifecycle:
+
+```typescript
+import { MessageBus } from "@agentforge/agents";
+
+const bus = new MessageBus();
+bus.send({ from: "pipeline-1", to: "monitor-1", type: "task", payload: { check: true }, priority: "high" });
+const msg = bus.receive("monitor-1");
+bus.ack("monitor-1", msg.id, { result: "healthy" });
+```
+
+## Production Agents
+
+| Agent | Description | Skills | Pattern |
+|-------|-------------|--------|---------|
+| `PipelineAgent` | Multi-step data processing | collect, transform, validate | Skills |
+| `MonitorAgent` | Health monitoring with structured reports | health-check | Skills |
+| `CoordinatorAgent` | Orchestrates SubAgents with parallel fan-out | — | SubAgent + Messaging |
+| `HttpWorkerAgent` | HTTP request processing | — | Base |
+| `SchedulerAgent` | Cron-like periodic task generation | — | Base |
+| `WatchdogAgent` | Auto-restarts failed agents (self-healing) | — | Base |
 
 ## API Endpoints
 
