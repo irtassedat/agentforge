@@ -5,3 +5,6 @@ export { SchedulerAgent } from "./workers/scheduler-agent.js";
 export { WatchdogAgent } from "./workers/watchdog-agent.js";
 export { BaseSkill } from "./skills/base-skill.js";
 export { SkillRegistry } from "./skills/skill-registry.js";
+export { SubAgent } from "./delegation/sub-agent.js";
+export type { SubAgentContext } from "./delegation/sub-agent.js";
+export { Delegator } from "./delegation/delegator.js";
